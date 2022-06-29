@@ -61,6 +61,69 @@ I would guess that you need to first select A0000000031010 before getting the pr
 
 ```
 
+https://stackoverflow.com/questions/38998065/how-to-read-response-from-a-credit-card-over-nfc
+```plaintext
+If your card actually is a MasterCard (or actually pretty much any EMV payment card), the card won't 
+return its card number (actually: primary account number, PAN) in response to the application 
+selection (SELECT) command. Instead, you would need to query the card for its data files and extract 
+the number from those files.
+
+Thus, you would first SELECT the MasterCard application by its AID:
+
+result = isoDep.Transceive(HexStringToByteArray("00A404007A000000004101000"));
+Next, you would typically issue a GET PROCESSING OPTIONS command (see Unable to identify AFL on a 
+smart card) in order to discover the location of the data records. However, you could also skip 
+this step and try to read records by a brute-force approach.
+
+Reading records with a brute-force approach could look something like this:
+
+for (int sfi = 1; sfi < 10; ++sfi ) {
+    for (int record = 1; record < 10; ++record) {
+        byte[] cmd = HexStringToByteArray("00B2000400");
+        cmd[2] = (byte)(record & 0x0FF)
+        cmd[3] |= (byte)((sfi << 3) & 0x0F8);
+        result = isoDep.Transceive(cmd);
+        if ((result != null) && (result.Length >=2)) {
+            if ((result[result.Length - 2] == (byte)0x90) && (result[result.Length - 1] == (byte)0x00)) {
+                // file exists and contains data
+                byte[] data = Arrays.CopyOf(result, result.Length - 2);
+                // TODO: parse data
+            }
+        }
+    }
+}
+You would then need to search the data returned for each record in order to find the data object 
+containing the PAN. See this answer on how to decode TLV encoded data objects. You can find an online 
+TLV parser here. The PAN is typically encoded in a data object with the tag 0x5A (see here).
+
+Note that the PAN that you can read over NFC may differ from the PAN printed on the card.
+
+edited May 23, 2017 at 12:00
+answered Aug 17, 2016 at 14:53
+Michael Roland
+38.3k1010 gold badges9090 silver badges187187 bronze badges
+ 
+It should be pointed out that this is not secure (in terms of cryptography, so it's prone to fake cards). 
+For a verified recognition of a card (and its PAN) you have to do a complete EMV transaction that 
+involves either an online authorization or offline data authentication. You could perform this as a 
+so called "0-value transaction" (a payment transaction with amount 0), but then you have to code the 
+complete payment process! – 
+Dominik
+ Aug 18, 2016 at 12:11
+ 
+@Dominik Correct. It definitely requires more than reading the PAN in order to authenticate a card. – 
+Michael Roland
+ Aug 18, 2016 at 16:15
+ 
+Thanks for input, i can also add an interesting source that i used, this java project: 
+com.github.devnied.emvnfccard!! – 
+Kalkunen
+ Aug 24, 2016 at 14:19 
+ 
+@Kalkunen where you successful to use the mentioned project in xamarin? – 
+Joe B
+ Apr 11 at 15:28
+```
 
 
 
