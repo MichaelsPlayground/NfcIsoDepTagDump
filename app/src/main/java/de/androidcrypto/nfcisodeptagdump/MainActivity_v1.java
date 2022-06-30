@@ -40,7 +40,7 @@ import java.io.OutputStreamWriter;
 import java.util.Arrays;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
+public class MainActivity_v1 extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
     //private static final BerTagFactory LOG = "BER";
     TextView dumpField, readResult;
@@ -383,43 +383,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     byte[] tag9f38Bytes;
                     if (tag9f38 == null) {
                         writeToUiAppend(readResult, "tag9f38 is null");
-                        writeToUiAppend(readResult, "## NO PDOL returned ##");
                         //return;
                     } else {
                         tag9f38Bytes = tag9f38.getBytesValue();
                         writeToUiAppend(readResult, "tag9f38Bytes length: " + tag9f38Bytes.length + " data: " + bytesToHex(tag9f38Bytes));
-                        writeToUiAppend(readResult, "## PDOL returned ##");
                         System.out.println("tag9f38Bytes length: " + tag9f38Bytes.length + " data: " + bytesToHex(tag9f38Bytes));
                     }
                     // MC output: 9f66049f02069f03069f1a0295055f2a029a039c019f3704
-
-                // if we do not want to brute force the file system we need to use the PDOL to get the locations of the records
-                    // this is for a NO PDOL
-                    // The GPO command is “80 A8 00 00 02 83 00”. Since there is no PDOL, we will put
-                // the tag 83 with the size 00 only. Lc is the size of the data field, which is 2 bytes.
-                byte[] pdolCmd = hexStringToByteArray("80A80000028300");
-                    writeToUiAppend(readResult, "Sending GPO with null PDOL");
-                writeToUiAppend(readResult, "pdolCmd length: " + pdolCmd.length + " data: " + bytesToHex(pdolCmd));
-                byte[] resultGpo;
-                    resultGpo = isoDep.transceive(pdolCmd);
-                    // return 67 00 = SEND with PDOL
-                    if (resultGpo == null) {
-                        writeToUiAppend(readResult, "resultGpo is null");
-                    } else {
-                        writeToUiAppend(readResult, "resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
-                        System.out.println("resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
-                    }
-
-/*
-barclays: resultGpo length: 26 data: 7716820219809410080101001001020118010200200102009000
-
-77 Response Message Template Format 2
- 	82 Application Interchange Profile
- 	 	1980
- 	94 Application File Locator (AFL)
- 	 	08010100100102011801020020010200
-90 Issuer Public Key Certificate
- */
 
                     // brute force to read all data in file table
                     //

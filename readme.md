@@ -125,9 +125,9 @@ Joe B
  Apr 11 at 15:28
 ```
 
+https://saush.wordpress.com/2006/09/08/getting-information-from-an-emv-chip-card
 
-
-
+A good article about all the processing commands to read an EMV card
 
 
 
