@@ -409,7 +409,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         writeToUiAppend(readResult, "resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
                         System.out.println("resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
                     }
-
+                    // tag 94: Application File Locator (AFL): 08010100100102011801020020010200
 /*
 barclays: resultGpo length: 26 data: 7716820219809410080101001001020118010200200102009000
 
