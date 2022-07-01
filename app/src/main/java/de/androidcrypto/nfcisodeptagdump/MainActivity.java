@@ -37,6 +37,7 @@ import com.payneteasy.tlv.BerTlvs;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -136,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 }
 
                 writeToUiAppend(readResult, "selectApdu with PPSE");
-                // now we run the select command with PSE
+                // now we run the select command with PPSE
                 command = selectApdu(PPSE);
                 byte[] responsePpse = isoDep.transceive(command);
                 if (responsePpse == null) {
@@ -249,6 +250,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     } else {
                         tag4fBytes = tlv.getBytesValue();
                         writeToUiAppend(readResult, "tag4fBytes length: " + tag4fBytes.length + " data: " + bytesToHex(tag4fBytes));
+                        System.out.println("tag4fBytes length: " + tag4fBytes.length + " data: " + bytesToHex(tag4fBytes));
                     }
                 }
                 // tag 50 is primitive ()
@@ -351,65 +353,72 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     writeToUiAppend(readResult, "AID = multiAidBytes length: " + multiAidBytes.length + " data: " + bytesToHex(multiAidBytes));
                     byte[] selectResponse = isoDep.transceive(selectApdu(multiAidBytes));
 */
-                    // here we are processing only the first of possible multiple aids on the card
-                    // tag4fBytes has the aid
-                    writeToUiAppend(readResult, "AID = tag4fBytes length: " + tag4fBytes.length + " data: " + bytesToHex(tag4fBytes));
-                    byte[] selectResponse = isoDep.transceive(selectApdu(tag4fBytes));
-                    if (selectResponse == null) {
-                        writeToUiAppend(readResult, "selectResponse is null");
-                    } else {
-                        writeToUiAppend(readResult, "selectResponse length: " + selectResponse.length + " data: " + bytesToHex(selectResponse));
-                        System.out.println("selectResponse length: " + selectResponse.length + " data: " + bytesToHex(selectResponse));
-                    }
-                    // MC output:
-                    // 6f528407a0000000041010a54750104465626974204d6173746572436172649f12104465626974204d6173746572436172648701019f1101015f2d046465656ebf0c119f0a04000101019f6e07028000003030009000
+                // here we are processing only the first of possible multiple aids on the card
+                // tag4fBytes has the aid
+                writeToUiAppend(readResult, "AID = tag4fBytes length: " + tag4fBytes.length + " data: " + bytesToHex(tag4fBytes));
+                byte[] selectResponse = isoDep.transceive(selectApdu(tag4fBytes));
+                if (selectResponse == null) {
+                    writeToUiAppend(readResult, "selectResponse is null");
+                } else {
+                    writeToUiAppend(readResult, "selectResponse length: " + selectResponse.length + " data: " + bytesToHex(selectResponse));
+                    System.out.println("selectResponse length: " + selectResponse.length + " data: " + bytesToHex(selectResponse));
+                }
+                // MC output:
+                // 6f528407a0000000041010a54750104465626974204d6173746572436172649f12104465626974204d6173746572436172648701019f1101015f2d046465656ebf0c119f0a04000101019f6e07028000003030009000
 
-                    // parse select response
-                    BerTlvs tlv6fs = parser.parse(selectResponse, 0, selectResponse.length);
-                    List<BerTlv> tlv6fList = tlv6fs.getList();
-                    int tlv6fListLength = tlv6fList.size();
-                    writeToUiAppend(readResult, "tlv6fListLength length: " + tlv6fListLength);
-                    for (int i = 0; i < tlv6fListLength; i++) {
-                        BerTlv tlv = tlvList.get(i);
-                        BerTag berTag = tlv.getTag();
-                        writeToUiAppend(readResult, "BerTag: " + berTag.toString());
-                    }
-                    // mc output: 6F 90
+                // parse select response
+                BerTlvs tlv6fs = parser.parse(selectResponse, 0, selectResponse.length);
+                List<BerTlv> tlv6fList = tlv6fs.getList();
+                int tlv6fListLength = tlv6fList.size();
+                writeToUiAppend(readResult, "tlv6fListLength length: " + tlv6fListLength);
+                for (int i = 0; i < tlv6fListLength; i++) {
+                    BerTlv tlv = tlvList.get(i);
+                    BerTag berTag = tlv.getTag();
+                    writeToUiAppend(readResult, "BerTag: " + berTag.toString());
+                }
+                // mc output: 6F 90
 
-                    // check for 9f38 (Processing Options Data Object List (PDOL))
-                    // if present use this for gpo
-                    // tag 9f0a is primitive
-                    BerTlv tag9f38 = tlv6fs.find(new BerTag(0x9F, 0x38));
-                    byte[] tag9f38Bytes;
-                    if (tag9f38 == null) {
-                        writeToUiAppend(readResult, "tag9f38 is null");
-                        writeToUiAppend(readResult, "## NO PDOL returned ##");
-                        //return;
-                    } else {
-                        tag9f38Bytes = tag9f38.getBytesValue();
-                        writeToUiAppend(readResult, "tag9f38Bytes length: " + tag9f38Bytes.length + " data: " + bytesToHex(tag9f38Bytes));
-                        writeToUiAppend(readResult, "## PDOL returned ##");
-                        System.out.println("tag9f38Bytes length: " + tag9f38Bytes.length + " data: " + bytesToHex(tag9f38Bytes));
-                    }
-                    // MC output: 9f66049f02069f03069f1a0295055f2a029a039c019f3704
+                // check for 9f38 (Processing Options Data Object List (PDOL))
+                // if present use this for gpo
+                // tag 9f0a is primitive
+                BerTlv tag9f38 = tlv6fs.find(new BerTag(0x9F, 0x38));
+                byte[] tag9f38Bytes;
+                if (tag9f38 == null) {
+                    writeToUiAppend(readResult, "tag9f38 is null");
+                    writeToUiAppend(readResult, "## NO PDOL returned ##");
+                    System.out.println("## tag9f38 is null = NO PDOL returned ##");
+                    //return;
+                } else {
+                    tag9f38Bytes = tag9f38.getBytesValue();
+                    writeToUiAppend(readResult, "tag9f38Bytes length: " + tag9f38Bytes.length + " data: " + bytesToHex(tag9f38Bytes));
+                    writeToUiAppend(readResult, "## PDOL returned ##");
+                    System.out.println("tag9f38Bytes length: " + tag9f38Bytes.length + " data: " + bytesToHex(tag9f38Bytes));
+                }
+                // Lloyds MC output: 9f66049f02069f03069f1a0295055f2a029a039c019f3704
 
                 // if we do not want to brute force the file system we need to use the PDOL to get the locations of the records
-                    // this is for a NO PDOL
-                    // The GPO command is “80 A8 00 00 02 83 00”. Since there is no PDOL, we will put
+                // this is for a NO PDOL
+                // The GPO command is “80 A8 00 00 02 83 00”. Since there is no PDOL, we will put
                 // the tag 83 with the size 00 only. Lc is the size of the data field, which is 2 bytes.
                 byte[] pdolCmd = hexStringToByteArray("80A80000028300");
-                    writeToUiAppend(readResult, "Sending GPO with null PDOL");
+                writeToUiAppend(readResult, "Sending GPO with null PDOL");
                 writeToUiAppend(readResult, "pdolCmd length: " + pdolCmd.length + " data: " + bytesToHex(pdolCmd));
                 byte[] resultGpo;
-                    resultGpo = isoDep.transceive(pdolCmd);
-                    // return 67 00 = SEND with PDOL
-                    if (resultGpo == null) {
-                        writeToUiAppend(readResult, "resultGpo is null");
-                    } else {
-                        writeToUiAppend(readResult, "resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
-                        System.out.println("resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
-                    }
-                    // tag 94: Application File Locator (AFL): 08010100100102011801020020010200
+                resultGpo = isoDep.transceive(pdolCmd);
+                // return 67 00 = SEND with PDOL
+                if (resultGpo == null) {
+                    writeToUiAppend(readResult, "resultGpo is null");
+                    // todo you need to run a bruteForceRead to get the data
+
+                } else {
+                    writeToUiAppend(readResult, "resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
+                    System.out.println("resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
+                }
+                // Lloyds: tag 94: Application File Locator (AFL): 08010100100102011801020020010200
+                // AA: tag94: 6700
+
+
+
 /*
 barclays: resultGpo length: 26 data: 7716820219809410080101001001020118010200200102009000
 
@@ -421,91 +430,68 @@ barclays: resultGpo length: 26 data: 7716820219809410080101001001020118010200200
 90 Issuer Public Key Certificate
  */
 
-                    // brute force to read all data in file table
-                    //
-                    byte[] resultBf;
-                    for (int sfi = 1; sfi < 10; ++sfi) {
-                        for (int record = 1; record < 10; ++record) {
-                            byte[] cmd = hexStringToByteArray("00B2000400");
-                            cmd[2] = (byte) (record & 0x0FF);
-                            cmd[3] |= (byte) ((sfi << 3) & 0x0F8);
-                            resultBf = isoDep.transceive(cmd);
-                            if ((resultBf != null) && (resultBf.length >= 2)) {
-                                if ((resultBf[resultBf.length - 2] == (byte) 0x90) && (resultBf[resultBf.length - 1] == (byte) 0x00)) {
-                                    // file exists and contains data
-                                    byte[] data = Arrays.copyOf(resultBf, resultBf.length - 2);
+                // proceed with reading / parsing only when resultGpo is success
+                byte[] tag94Bytes = new byte[0]; // 94 takes the afl, the application file locator
+                if ((resultGpo[resultGpo.length - 2] == (byte) 0x90) && (resultGpo[resultGpo.length - 1] == (byte) 0x00)) {
+                    BerTlvs tlvGpos = parser.parse(resultGpo, 0, resultGpo.length);
+                    BerTlv tag94 = tlvGpos.find(new BerTag(0x94));
+                    if (tag94 == null) {
+                        writeToUiAppend(readResult, "tag94 is null");
+                        //return;
+                    } else {
+                        tag94Bytes = tag94.getBytesValue();
+                        writeToUiAppend(readResult, "tag94Bytes length: " + tag94Bytes.length + " data: " + bytesToHex(tag94Bytes));
+                        System.out.println("tag94Bytes length: " + tag94Bytes.length + " data: " + bytesToHex(tag94Bytes));
+                    }
+                    // MC output: length: 16 data: 08010100100102011801020020010200
+                    // 08010100 10010201 18010200 20010200
+                    int tag94BytesLength = tag94Bytes.length;
+                    // split array by 4 bytes
+                    List<byte[]> tag94BytesList = divideArray(tag94Bytes, 4);
+                    int tag94BytesListLength = tag94BytesList.size();
+                    writeToUiAppend(readResult, "tag94Bytes divided into " + tag94BytesListLength + " arrays");
+                    for (int i = 0; i < tag94BytesListLength; i++) {
+                        writeToUiAppend(readResult, "get sfi + record for array " + i + " data: " + bytesToHex(tag94BytesList.get(i)));
+                        // get sfi from first byte, 2nd byte is first record, 3rd byte is last record, 4th byte is offline transactions
+                        byte[] tag94BytesListEntry = tag94BytesList.get(i);
+                        byte sfiOrg = tag94BytesListEntry[0];
+                        byte rec1 = tag94BytesListEntry[1];
+                        byte recL = tag94BytesListEntry[2];
+                        byte offl = tag94BytesListEntry[3]; // offline authorization
+                        writeToUiAppend(readResult, "sfiOrg: " + sfiOrg + " rec1: " + ((int) rec1) + " recL: " + ((int) recL));
+                        int sfiNew = (byte) sfiOrg | 0x04; // add 4 = set bit 3
+                        writeToUiAppend(readResult, "sfiNew: " + sfiNew + " rec1: " + ((int) rec1) + " recL: " + ((int) recL));
 
-                                    writeToUiAppend(readResult, "sfi: " + sfi + " record: " + record + " length: " + data.length + " data: " + bytesToHex(data));
-                                    System.out.println("sfi: " + sfi + " record: " + record + " length: " + data.length + " data: " + bytesToHex(data));
-                                    if (data.length > 253) {
-                                        writeToUiAppend(readResult, "message is far to long to parse, skipped");
-                                    } else {
-                                        // parse data and try to find:
-                                        // 5a = Application Primary Account Number (PAN)
-                                        // 5F34 = Application Primary Account Number (PAN) Sequence Number
-                                        // 5F25  = Application Effective Date (card valid from)
-                                        // 5F24 = Application Expiration Date
-                                        BerTlvs tlvFiles = parser.parse(data, 0, data.length);
-                                        List<BerTlv> tlvFileList = tlvFiles.getList();
-                                        int tlvFileListLength = tlvFileList.size();
-                                        writeToUiAppend(readResult, "tlvFileListLength length: " + tlvFileListLength);
-                                        for (int i = 0; i < tlvFileListLength; i++) {
-                                            BerTlv tlv = tlvList.get(i);
-                                            BerTag berTag = tlv.getTag();
-                                            writeToUiAppend(readResult, "BerTag: " + berTag.toString());
-                                        }
-                                        // tag 5a is primitive (Application Primary Account Number (PAN))
-                                        BerTlv tag5a = tlvFiles.find(new BerTag(0x5A));
-                                        byte[] tag5aBytes;
-                                        if (tag5a == null) {
-                                            writeToUiAppend(readResult, "tag5a is null");
-                                            //return;
-                                        } else {
-                                            tag5aBytes = tag5a.getBytesValue();
-                                            writeToUiAppend(readResult, "*** PAN found ***");
-                                            writeToUiAppend(readResult, "tag5aBytes length: " + tag5aBytes.length + " data: " + bytesToHex(tag5aBytes));
-                                        }
-                                        // MC output:
-                                        // tag 5f34 is primitive (Application Primary Account Number (PAN) Sequence Number)
-                                        BerTlv tag5f34 = tlvFiles.find(new BerTag(0x5F, 0x34));
-                                        byte[] tag5f34Bytes;
-                                        if (tag5f34 == null) {
-                                            writeToUiAppend(readResult, "tag5f34 is null");
-                                            //return;
-                                        } else {
-                                            tag5f34Bytes = tag5f34.getBytesValue();
-                                            writeToUiAppend(readResult, "tag5f34Bytes length: " + tag5f34Bytes.length + " data: " + bytesToHex(tag5f34Bytes));
-                                        }
-                                        // MC output:
-                                        // tag 5f24 is primitive (Application Expiration Date)
-                                        BerTlv tag5f24 = tlvFiles.find(new BerTag(0x5F, 0x24));
-                                        byte[] tag5f24Bytes;
-                                        if (tag5f24 == null) {
-                                            writeToUiAppend(readResult, "tag5f24 is null");
-                                            //return;
-                                        } else {
-                                            tag5f24Bytes = tag5f24.getBytesValue();
-                                            writeToUiAppend(readResult, "tag5f24Bytes length: " + tag5f24Bytes.length + " data: " + bytesToHex(tag5f24Bytes));
-                                        }
-                                        // MC output:
-                                        // MC output:
-                                        // tag 5f25 is primitive (Application Effective Date)
-                                        BerTlv tag5f25 = tlvFiles.find(new BerTag(0x5F, 0x25));
-                                        byte[] tag5f25Bytes;
-                                        if (tag5f25 == null) {
-                                            writeToUiAppend(readResult, "tag5f25 is null");
-                                            //return;
-                                        } else {
-                                            tag5f25Bytes = tag5f25.getBytesValue();
-                                            writeToUiAppend(readResult, "tag5f25Bytes length: " + tag5f25Bytes.length + " data: " + bytesToHex(tag5f25Bytes));
-                                        }
-                                        // MC output:
-                                    }
-                                }
+                        // read records
+                        byte[] resultReadRecord = new byte[0];
+
+                        for (int iRecords = (int) rec1; iRecords <= (int) recL; iRecords++) {
+                            byte[] cmd = hexStringToByteArray("00B2000400");
+                            cmd[2] = (byte) (iRecords & 0x0FF);
+                            cmd[3] |= (byte) (sfiNew & 0x0FF);
+                            resultReadRecord = isoDep.transceive(cmd);
+                            writeToUiAppend(readResult, "readRecordCommand length: " + cmd.length + " data: " + bytesToHex(cmd));
+                            if ((resultReadRecord[resultReadRecord.length - 2] == (byte) 0x90) && (resultReadRecord[resultReadRecord.length - 1] == (byte) 0x00)) {
+                                writeToUiAppend(readResult, "Success: read record result: " + bytesToHex(resultReadRecord));
+                                writeToUiAppend(readResult, "* parse AFL for entry: " + bytesToHex(tag94BytesListEntry) + " record: " + iRecords);
+                                parseAflDataToTextView(resultReadRecord, readResult);
+                            } else {
+                                writeToUiAppend(readResult, "ERROR: read record failed, result: " + bytesToHex(resultReadRecord));
+                                resultReadRecord = new byte[0];
                             }
                         }
-                    }
-                    // END file processing
+                    } // for (int i = 0; i < tag94BytesListLength; i++) { // = number of records belong to this afl
+
+
+                } // if gpoResult = success
+
+
+                // brute force to read all data in file table
+                writeToUiAppend(readResult, "*** starting brute force to read all records ***");
+                //runBruteForceReadOnCard(isoDep, tlvList, readResult);
+                writeToUiAppend(readResult, "*** ending brute force to read all records ***");
+
+                // END file processing
 
                 //} // FOR multiAids
                 // see this online decoder to get the content:
@@ -835,111 +821,172 @@ search for 9f38:
  */
 
 
-                // check that the tag is a NTAG213/215/216 manufactured by NXP - stop if not
-                /*
-                String ntagVersion = de.androidcrypto.nfcisodeptagdump.NfcIdentifyNtag.checkNtagType(nfcA, tag.getId());
-                if (ntagVersion.equals("0")) {
-                    runOnUiThread(() -> {
-                        readResult.setText("NFC tag is NOT of type NXP NTAG213/215/216");
-                        Toast.makeText(getApplicationContext(),
-                                "NFC tag is NOT of type NXP NTAG213/215/216",
-                                Toast.LENGTH_SHORT).show();
-                    });
-                    return;
-                }
-
-                int nfcaMaxTranceiveLength = nfcA.getMaxTransceiveLength(); // important for the readFast command
-                int ntagPages = de.androidcrypto.nfcisodeptagdump.NfcIdentifyNtag.getIdentifiedNtagPages();
-                int ntagMemoryBytes = de.androidcrypto.nfcisodeptagdump.NfcIdentifyNtag.getIdentifiedNtagMemoryBytes();
-                tagIdString = getDec(tag.getId());
-                tagTypeString = de.androidcrypto.nfcisodeptagdump.NfcIdentifyNtag.getIdentifiedNtagType();
-                String nfcaContent = "raw data of " + tagTypeString + "\n" +
-                        "number of pages: " + ntagPages +
-                        " total memory: " + ntagMemoryBytes +
-                        " bytes\n" +
-                        "tag ID: " + bytesToHex(de.androidcrypto.nfcisodeptagdump.NfcIdentifyNtag.getIdentifiedNtagId()) + "\n" +
-                        "tag ID: " + tagIdString + "\n";
-                nfcaContent = nfcaContent + "maxTranceiveLength: " + nfcaMaxTranceiveLength + " bytes\n";
-                // read the complete memory depending on ntag type
-                byte[] headerMemory = new byte[16]; // 4 pages of each 4 bytes, e.g. manufacturer data
-                byte[] ntagMemory = new byte[ntagMemoryBytes]; // user memory, 888 byte for a NTAG216
-                byte[] footerMemory = new byte[20]; // 5 pages, e.g. dyn. lock bytes, configuration pages, password & pack
-
-                // read the content of the tag in several runs
-
-                // first we are reading the header
-                System.out.println("reading the header");
-                headerMemory = getFastTagDataRange(nfcA, 0, 3);
-                if (headerMemory == null) {
-                    writeToUiAppend(readResult, "ERROR on reading header, aborted");
-                }
-                String dumpContentHeader = "Header content:\n" + HexDumpOwn.prettyPrint(headerMemory);
-
-                int footerStart = 4 + ntagPages;
-                int footerEnd = 4 + footerStart;
-                System.out.println("reading the footer");
-                footerMemory = getFastTagDataRange(nfcA, footerStart, footerEnd);
-                if (footerMemory == null) {
-                    writeToUiAppend(readResult, "ERROR on reading footer, aborted");
-                }
-                String dumpContentFooter = "Footer content:\n" + HexDumpOwn.prettyPrint(footerMemory);
-
-                byte[] response;
-                try {
-                    //int nfcaMaxTranceiveLength = nfcA.getMaxTransceiveLength(); // my device: 253 bytes
-                    int nfcaMaxTranceive4ByteTrunc = nfcaMaxTranceiveLength / 4; // 63
-                    int nfcaMaxTranceive4ByteLength = nfcaMaxTranceive4ByteTrunc * 4; // 252 bytes
-                    int nfcaNrOfFullReadings = ntagMemoryBytes / nfcaMaxTranceive4ByteLength; // 888 bytes / 252 bytes = 3 full readings
-                    int nfcaTotalFullReadingBytes = nfcaNrOfFullReadings * nfcaMaxTranceive4ByteLength; // 3 * 252 = 756
-                    int nfcaMaxTranceiveModuloLength = ntagMemoryBytes - nfcaTotalFullReadingBytes; // 888 bytes - 756 bytes = 132 bytes
-                    nfcaContent = nfcaContent + "nfcaMaxTranceive4ByteTrunc: " + nfcaMaxTranceive4ByteTrunc + "\n";
-                    nfcaContent = nfcaContent + "nfcaMaxTranceive4ByteLength: " + nfcaMaxTranceive4ByteLength + "\n";
-                    nfcaContent = nfcaContent + "nfcaNrOfFullReadings: " + nfcaNrOfFullReadings + "\n";
-                    nfcaContent = nfcaContent + "nfcaTotalFullReadingBytes: " + nfcaTotalFullReadingBytes + "\n";
-                    nfcaContent = nfcaContent + "nfcaMaxTranceiveModuloLength: " + nfcaMaxTranceiveModuloLength + "\n";
-
-                    for (int i = 0; i < nfcaNrOfFullReadings; i++) {
-                        System.out.println("starting round: " + i);
-                        response = getFastTagDataRange(nfcA, (4 + (nfcaMaxTranceive4ByteTrunc * i)), (4 + (nfcaMaxTranceive4ByteTrunc * (i + 1)) - 1));
-                        if (response == null) {
-                            writeToUiAppend(readResult, "ERROR on reading user memory, aborted");
-                        } else {
-                            // success: response contains ACK or actual data
-                            System.arraycopy(response, 0, ntagMemory, (nfcaMaxTranceive4ByteLength * i), nfcaMaxTranceive4ByteLength);
-                        }
-                    } // for
-
-                    // now we read the nfcaMaxTranceiveModuloLength bytes, for a NTAG216 = 132 bytes
-                    response = getFastTagDataRange(nfcA, (4 + (nfcaMaxTranceive4ByteTrunc * nfcaNrOfFullReadings)), (4 + (nfcaMaxTranceive4ByteTrunc * nfcaNrOfFullReadings) + (nfcaMaxTranceiveModuloLength / 4)));
-                    if (response == null) {
-                        writeToUiAppend(readResult, "ERROR on reading user memory, aborted");
-                    } else {
-                        // success: response contains ACK or actual data
-                        System.arraycopy(response, 0, ntagMemory, (nfcaMaxTranceive4ByteLength * nfcaNrOfFullReadings), nfcaMaxTranceiveModuloLength);
-                    }
-                    nfcaContent = nfcaContent + "fast reading complete: " + "\n" + bytesToHex(ntagMemory) + "\n";
-
-                    String finalNfcaRawText = nfcaContent;
-                    String dumpContent = dumpContentHeader + "\n\nUser memory content:\n" + HexDumpOwn.prettyPrint(ntagMemory);
-                    dumpContent = dumpContent + "\n\n" + dumpContentFooter;
-                    System.out.println(dumpContent);
-                    dumpExportString = dumpContent;
-                    String finalDumpContent = dumpContent;
-                    runOnUiThread(() -> {
-                        dumpField.setText(finalDumpContent);
-                        readResult.setText(finalNfcaRawText);
-                        System.out.println(finalNfcaRawText);
-                    });
-
-                } finally {
-                    try {
-                        nfcA.close();
-                    } catch (IOException e) {
-                        writeToUiAppend(readResult, "ERROR IOException: " + e);
-                    }
-                }*/
             } else {
                 writeToUiAppend(readResult, "IsoDep == null");
+            }
+        } catch (IOException e) {
+            writeToUiAppend(readResult, "ERROR IOException: " + e);
+            e.printStackTrace();
+        }
+    }
+
+    private void parseAflDataToTextView(byte[] data, TextView readResult) {
+        BerTlvParser parser = new BerTlvParser(LOG);
+        if (data.length > 253) {
+            writeToUiAppend(readResult, "message is far to long to parse, skipped");
+        } else {
+            // parse data and try to find:
+            // 5a = Application Primary Account Number (PAN)
+            // 5F34 = Application Primary Account Number (PAN) Sequence Number
+            // 5F25  = Application Effective Date (card valid from)
+            // 5F24 = Application Expiration Date
+            BerTlvs tlvFiles = parser.parse(data, 0, data.length);
+            List<BerTlv> tlvFileList = tlvFiles.getList();
+            int tlvFileListLength = tlvFileList.size();
+            writeToUiAppend(readResult, "tlvFileListLength length: " + tlvFileListLength);
+            /*
+            for (int i = 0; i < tlvFileListLength; i++) {
+                BerTlv tlv = tlvList.get(i);
+                BerTag berTag = tlv.getTag();
+                writeToUiAppend(readResult, "BerTag: " + berTag.toString());
+            }*/
+            // tag 5a is primitive (Application Primary Account Number (PAN))
+            BerTlv tag5a = tlvFiles.find(new BerTag(0x5A));
+            byte[] tag5aBytes;
+            if (tag5a == null) {
+                writeToUiAppend(readResult, "tag5a is null");
+                //return;
+            } else {
+                tag5aBytes = tag5a.getBytesValue();
+                writeToUiAppend(readResult, "*** PAN found ***");
+                writeToUiAppend(readResult, "tag5aBytes length: " + tag5aBytes.length + " data: " + bytesToHex(tag5aBytes));
+            }
+            // MC output:
+            // tag 5f34 is primitive (Application Primary Account Number (PAN) Sequence Number)
+            BerTlv tag5f34 = tlvFiles.find(new BerTag(0x5F, 0x34));
+            byte[] tag5f34Bytes;
+            if (tag5f34 == null) {
+                writeToUiAppend(readResult, "tag5f34 is null");
+                //return;
+            } else {
+                tag5f34Bytes = tag5f34.getBytesValue();
+                writeToUiAppend(readResult, "tag5f34Bytes length: " + tag5f34Bytes.length + " data: " + bytesToHex(tag5f34Bytes));
+            }
+            // MC output:
+            // tag 5f24 is primitive (Application Expiration Date)
+            BerTlv tag5f24 = tlvFiles.find(new BerTag(0x5F, 0x24));
+            byte[] tag5f24Bytes;
+            if (tag5f24 == null) {
+                writeToUiAppend(readResult, "tag5f24 is null");
+                //return;
+            } else {
+                tag5f24Bytes = tag5f24.getBytesValue();
+                writeToUiAppend(readResult, "tag5f24Bytes length: " + tag5f24Bytes.length + " data: " + bytesToHex(tag5f24Bytes));
+            }
+            // MC output:
+            // MC output:
+            // tag 5f25 is primitive (Application Effective Date)
+            BerTlv tag5f25 = tlvFiles.find(new BerTag(0x5F, 0x25));
+            byte[] tag5f25Bytes;
+            if (tag5f25 == null) {
+                writeToUiAppend(readResult, "tag5f25 is null");
+                //return;
+            } else {
+                tag5f25Bytes = tag5f25.getBytesValue();
+                writeToUiAppend(readResult, "tag5f25Bytes length: " + tag5f25Bytes.length + " data: " + bytesToHex(tag5f25Bytes));
+            }
+            // MC output:
+        }
+    }
+
+    private void runBruteForceReadOnCard(IsoDep isoDep, List<BerTlv> tlvList, TextView readResult) {
+        BerTlvParser parser = new BerTlvParser(LOG);
+        byte[] resultBf;
+        try {
+            for (int sfi = 1; sfi < 10; ++sfi) {
+                //for (int sfi = 1; sfi < 11; ++sfi) {
+                for (int record = 1; record < 10; ++record) {
+                    //for (int record = 1; record < 11; ++record) {
+                    byte[] cmd = hexStringToByteArray("00B2000400");
+                    cmd[2] = (byte) (record & 0x0FF);
+                    writeToUiAppend(readResult, "## sfi: " + sfi);
+                    cmd[3] |= (byte) ((sfi << 3) & 0x0F8);
+                    resultBf = isoDep.transceive(cmd);
+                    if ((resultBf != null) && (resultBf.length >= 2)) {
+                        if ((resultBf[resultBf.length - 2] == (byte) 0x90) && (resultBf[resultBf.length - 1] == (byte) 0x00)) {
+                            // file exists and contains data
+                            byte[] data = Arrays.copyOf(resultBf, resultBf.length - 2);
+                            writeToUiAppend(readResult, "cmd length: " + cmd.length + " data: " + bytesToHex(cmd));
+                            writeToUiAppend(readResult, "sfi: " + sfi + " record: " + record + " length: " + data.length + " data: " + bytesToHex(data));
+                            writeToUiAppend(readResult, "sfi: " + sfi + " (sfi << 3) & 0x0F8: " + (byte) ((sfi << 3) & 0x0F8));
+                            System.out.println("sfi: " + sfi + " record: " + record + " length: " + data.length + " data: " + bytesToHex(data));
+                            if (data.length > 253) {
+                                writeToUiAppend(readResult, "message is far to long to parse, skipped");
+                            } else {
+                                // parse data and try to find:
+                                // 5a = Application Primary Account Number (PAN)
+                                // 5F34 = Application Primary Account Number (PAN) Sequence Number
+                                // 5F25  = Application Effective Date (card valid from)
+                                // 5F24 = Application Expiration Date
+                                BerTlvs tlvFiles = parser.parse(data, 0, data.length);
+                                List<BerTlv> tlvFileList = tlvFiles.getList();
+                                int tlvFileListLength = tlvFileList.size();
+                                writeToUiAppend(readResult, "tlvFileListLength length: " + tlvFileListLength);
+                                for (int i = 0; i < tlvFileListLength; i++) {
+                                    BerTlv tlv = tlvList.get(i);
+                                    BerTag berTag = tlv.getTag();
+                                    writeToUiAppend(readResult, "BerTag: " + berTag.toString());
+                                }
+                                // tag 5a is primitive (Application Primary Account Number (PAN))
+                                BerTlv tag5a = tlvFiles.find(new BerTag(0x5A));
+                                byte[] tag5aBytes;
+                                if (tag5a == null) {
+                                    writeToUiAppend(readResult, "tag5a is null");
+                                    //return;
+                                } else {
+                                    tag5aBytes = tag5a.getBytesValue();
+                                    writeToUiAppend(readResult, "*** PAN found ***");
+                                    writeToUiAppend(readResult, "tag5aBytes length: " + tag5aBytes.length + " data: " + bytesToHex(tag5aBytes));
+                                }
+                                // MC output:
+                                // tag 5f34 is primitive (Application Primary Account Number (PAN) Sequence Number)
+                                BerTlv tag5f34 = tlvFiles.find(new BerTag(0x5F, 0x34));
+                                byte[] tag5f34Bytes;
+                                if (tag5f34 == null) {
+                                    writeToUiAppend(readResult, "tag5f34 is null");
+                                    //return;
+                                } else {
+                                    tag5f34Bytes = tag5f34.getBytesValue();
+                                    writeToUiAppend(readResult, "tag5f34Bytes length: " + tag5f34Bytes.length + " data: " + bytesToHex(tag5f34Bytes));
+                                }
+                                // MC output:
+                                // tag 5f24 is primitive (Application Expiration Date)
+                                BerTlv tag5f24 = tlvFiles.find(new BerTag(0x5F, 0x24));
+                                byte[] tag5f24Bytes;
+                                if (tag5f24 == null) {
+                                    writeToUiAppend(readResult, "tag5f24 is null");
+                                    //return;
+                                } else {
+                                    tag5f24Bytes = tag5f24.getBytesValue();
+                                    writeToUiAppend(readResult, "tag5f24Bytes length: " + tag5f24Bytes.length + " data: " + bytesToHex(tag5f24Bytes));
+                                }
+                                // MC output:
+                                // MC output:
+                                // tag 5f25 is primitive (Application Effective Date)
+                                BerTlv tag5f25 = tlvFiles.find(new BerTag(0x5F, 0x25));
+                                byte[] tag5f25Bytes;
+                                if (tag5f25 == null) {
+                                    writeToUiAppend(readResult, "tag5f25 is null");
+                                    //return;
+                                } else {
+                                    tag5f25Bytes = tag5f25.getBytesValue();
+                                    writeToUiAppend(readResult, "tag5f25Bytes length: " + tag5f25Bytes.length + " data: " + bytesToHex(tag5f25Bytes));
+                                }
+                                // MC output:
+                            }
+                        }
+                    }
+                }
             }
         } catch (IOException e) {
             writeToUiAppend(readResult, "ERROR IOException: " + e);
@@ -960,6 +1007,45 @@ search for 9f38:
         return commandApdu;
     }
 
+    public static List<byte[]> divideArray(byte[] source, int chunksize) {
+
+        List<byte[]> result = new ArrayList<byte[]>();
+        int start = 0;
+        while (start < source.length) {
+            int end = Math.min(source.length, start + chunksize);
+            result.add(Arrays.copyOfRange(source, start, end));
+            start += chunksize;
+        }
+        return result;
+    }
+
+    public static int byteArrayToInt(byte[] byteArray) {
+        if (byteArray == null) {
+            throw new IllegalArgumentException("Parameter \'byteArray\' cannot be null");
+        } else {
+            return byteArrayToInt(byteArray, 0, byteArray.length);
+        }
+    }
+
+    public static int byteArrayToInt(byte[] byteArray, int startPos, int length) {
+        if (byteArray == null) {
+            throw new IllegalArgumentException("Parameter \'byteArray\' cannot be null");
+        } else if (length > 0 && length <= 4) {
+            if (startPos >= 0 && byteArray.length >= startPos + length) {
+                int value = 0;
+
+                for (int i = 0; i < length; ++i) {
+                    value += (byteArray[startPos + i] & 255) << 8 * (length - i - 1);
+                }
+
+                return value;
+            } else {
+                throw new IllegalArgumentException("Length or startPos not valid");
+            }
+        } else {
+            throw new IllegalArgumentException("Length must be between 1 and 4. Length = " + length);
+        }
+    }
 
     public static String bytesToHex(byte[] bytes) {
         StringBuffer result = new StringBuffer();

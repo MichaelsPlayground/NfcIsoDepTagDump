@@ -5,6 +5,9 @@
 
 Links:
 
+List of EMV-tags: https://github.com/devnied/EMV-NFC-Paycard-Enrollment/blob/master/library/src/main/java/com/github/devnied/emvnfccard/iso7816emv/EmvTags.java
+
+
 https://stackoverflow.com/questions/24631012/apdu-command-to-read-credit-card-data-from-visa-paywave-nfc-enabled-card-using-s
 
 https://stackoverflow.com/questions/23107685/reading-public-data-of-emv-card/23113332#23113332
@@ -129,9 +132,73 @@ https://saush.wordpress.com/2006/09/08/getting-information-from-an-emv-chip-card
 
 A good article about all the processing commands to read an EMV card
 
+https://stackoverflow.com/questions/50157927/chip-emv-getting-afl-for-every-smart-card
+
+Regarding your 2nd question: GPO response may appears in 2 response template. Format 1 (Starting 
+with Tag 80) or Format 2 (starting with Tag 77). choosing template is implementation dependent. 
+For tag 77, response comes in TLV form (As you can see in your Hello Bank & Paypal. it will contains t
+ag 94 which will indicate the AFL). When GPO comes with Tag 80 then it will not be in TLV form. 
+First byte will be tag 80 second one will be length of data 3rd and 4th will be AIP and from 5th byte 
+to end(before status word 9000) is AFL in this case. –
+Gaurav Shukla
+May 4, 2018 at 10:17
 
 
 
+https://www.javacardos.com/javacardforum/viewtopic.php?t=150
+
+```plaintext
+//Select Applet, return File Control Information (FCI) Proprietary Template, it contains Dedicated File(DF), File Control Information and Application Tag.
+00A4040006454D5600000100;
+//Generates an 8 byte random number .
+8084000000;
+
+//READ RECORD Command: '00B2' + Record number + Reference control parameter. (See Book 3, Section 6.5.11)
+//Get the record of SFI 1, Record 1,It contains  Primary account number, Bank identifier code, Cardholder Verification Method (CVM) List and other fields.
+00B2010C;
+//Get the Read record message template, record 2, It contains Certification Authority Public Key Index, Issuer Public Key Certificate, Issuer Public Key Remainder and Issuer Public Key Exponent.
+00B2020C;
+//Get the Read record message template, record 3, It contains ICC Public Key Certificate, ICC Public Key Exponent, ICC Public Key Remainder and Dynamic Data Authentication Data Object List (DDOL).
+00B2030C;
+
+//GET PROCESSING OPTIONS(GPO) Command: 80A80000 + Lc + PDOL related data + 00,(See Book 3, Section 6.5.8)
+//In this applet, PDOL is not checked,The response message is a primitive data object with tag equal to '80'.the format is:
+//80 + Length + AIP(Application Interchange Profile) + AFL(Application File Locator) 
+80A80000;
+
+//GET DATA command: in EMV Specification, the value of P1P2 will be '9F36', '9F13', '9F17', or '9F4F'(Log Format) (See Book 3, Section 6.5.7)
+//Get the data of ATC(Application Transaction Counter, tag '9F36')), 
+80CA9F36;
+//Get the data of PIN Try Counter
+80CA9F17;
+//Get the data of Last Online ATC Register(tag '9F13')
+80CA9F13;
+
+//GENERATE AC command: It sends transaction-related data to the ICC, which computes and returns a cryptogram.in this applet of generateFirstAC only supporting request TC and ARQC.(See Book 3, Section 6.5.5)
+//request TC
+80AE4000;
+
+
+//Compute the second AC response APDU using Format 1. 
+//AAC
+80AE2000;
+```
+
+```plaintext
+The response on GET PROCESSING OPTIONS above is TLV encoded:
+
+77 12 - response templait, containing response data
+    82 02 3C00 - AUC
+    94 0C 080202001001030018010201 - AFL
+    9000 - SW (Status Word), response ofapplication, telling you, that no errors occured
+Note, that response to GET PROCESSING OPTIONS may be returned as 80 template, in that case, you must parse it yourelf:
+
+80 0E - response templait, containing response data
+    3C00 - AUC (always 2 bytes long)
+    080202001001030018010201 - AFL
+    9000 - SW (Status Word), response ofapplication, telling you, that no errors
+Y
+```
 
 
 This app read the complete content of a Tag of type NTAG21x (NTAG213, NTAG215 or NTAG216).
