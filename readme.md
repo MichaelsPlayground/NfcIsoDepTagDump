@@ -7,6 +7,7 @@ Links:
 
 List of EMV-tags: https://github.com/devnied/EMV-NFC-Paycard-Enrollment/blob/master/library/src/main/java/com/github/devnied/emvnfccard/iso7816emv/EmvTags.java
 
+Online TLV-decoder: https://emvlab.org/tlvutils/
 
 https://stackoverflow.com/questions/24631012/apdu-command-to-read-credit-card-data-from-visa-paywave-nfc-enabled-card-using-s
 

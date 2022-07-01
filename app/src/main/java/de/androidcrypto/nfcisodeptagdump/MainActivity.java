@@ -408,8 +408,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // return 67 00 = SEND with PDOL
                 if (resultGpo == null) {
                     writeToUiAppend(readResult, "resultGpo is null");
-                    // todo you need to run a bruteForceRead to get the data
-
+                    return;
+                } else if ((resultGpo[resultGpo.length - 2] == (byte) 0x67) && (resultGpo[resultGpo.length - 1] == (byte) 0x00)) {
+                    writeToUiAppend(readResult, "resultGpo is 0x6700, running brute force reading");
+                    runBruteForceReadOnCard(isoDep, tlvList, readResult);
+                    return;
                 } else {
                     writeToUiAppend(readResult, "resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
                     System.out.println("resultGpo length: " + resultGpo.length + " data: " + bytesToHex(resultGpo));
@@ -909,7 +912,6 @@ search for 9f38:
                     //for (int record = 1; record < 11; ++record) {
                     byte[] cmd = hexStringToByteArray("00B2000400");
                     cmd[2] = (byte) (record & 0x0FF);
-                    writeToUiAppend(readResult, "## sfi: " + sfi);
                     cmd[3] |= (byte) ((sfi << 3) & 0x0F8);
                     resultBf = isoDep.transceive(cmd);
                     if ((resultBf != null) && (resultBf.length >= 2)) {
@@ -918,22 +920,41 @@ search for 9f38:
                             byte[] data = Arrays.copyOf(resultBf, resultBf.length - 2);
                             writeToUiAppend(readResult, "cmd length: " + cmd.length + " data: " + bytesToHex(cmd));
                             writeToUiAppend(readResult, "sfi: " + sfi + " record: " + record + " length: " + data.length + " data: " + bytesToHex(data));
-                            writeToUiAppend(readResult, "sfi: " + sfi + " (sfi << 3) & 0x0F8: " + (byte) ((sfi << 3) & 0x0F8));
                             System.out.println("sfi: " + sfi + " record: " + record + " length: " + data.length + " data: " + bytesToHex(data));
-                            if (data.length > 253) {
-                                writeToUiAppend(readResult, "message is far to long to parse, skipped");
+                            /*if (data.length > 253) {
+                                writeToUiAppend(readResult, "message is far to long to parse, shortened");
+                                //data = Arrays.copyOfRange(data, 0, 99);
+                                byte[] dataNew = new byte[400];
+                                System.arraycopy(data, 0, dataNew, 0, data.length);
+                                data = dataNew.clone();
+                            }*/
+
+                            writeToUiAppend(readResult, "data length: " + data.length);
+
+                            byte[] tag9f46Header = hexStringToByteArray("7081fb9f46");
+                            if (startsWith(data, tag9f46Header)) {
+                                writeToUiAppend(readResult,"found tag 9f46 = Integrated Circuit Card (ICC) Public Key Certificate");
                             } else {
+
+                                //} else {
                                 // parse data and try to find:
                                 // 5a = Application Primary Account Number (PAN)
                                 // 5F34 = Application Primary Account Number (PAN) Sequence Number
                                 // 5F25  = Application Effective Date (card valid from)
                                 // 5F24 = Application Expiration Date
+                                //writeToUiAppend(readResult, "** before BerTlvs tlvFiles = parser.parse(data, 0, data.length); **");
+                                //writeToUiAppend(readResult, "data length: " + data.length);
+                                //data = trim(data); // delete trailing x00
+
+                                //writeToUiAppend(readResult, "data length: " + data.length);
                                 BerTlvs tlvFiles = parser.parse(data, 0, data.length);
+                                //BerTlvs tlvFiles = parser.parseConstructed(data, 0, data.length);
                                 List<BerTlv> tlvFileList = tlvFiles.getList();
                                 int tlvFileListLength = tlvFileList.size();
                                 writeToUiAppend(readResult, "tlvFileListLength length: " + tlvFileListLength);
                                 for (int i = 0; i < tlvFileListLength; i++) {
-                                    BerTlv tlv = tlvList.get(i);
+                                    //BerTlv tlv = tlvList.get(i);
+                                    BerTlv tlv = tlvFileList.get(i);
                                     BerTag berTag = tlv.getTag();
                                     writeToUiAppend(readResult, "BerTag: " + berTag.toString());
                                 }
@@ -947,6 +968,7 @@ search for 9f38:
                                     tag5aBytes = tag5a.getBytesValue();
                                     writeToUiAppend(readResult, "*** PAN found ***");
                                     writeToUiAppend(readResult, "tag5aBytes length: " + tag5aBytes.length + " data: " + bytesToHex(tag5aBytes));
+                                    System.out.println("*** PAN found " + "tag5aBytes length: " + tag5aBytes.length + " data: " + bytesToHex(tag5aBytes));
                                 }
                                 // MC output:
                                 // tag 5f34 is primitive (Application Primary Account Number (PAN) Sequence Number)
@@ -958,6 +980,7 @@ search for 9f38:
                                 } else {
                                     tag5f34Bytes = tag5f34.getBytesValue();
                                     writeToUiAppend(readResult, "tag5f34Bytes length: " + tag5f34Bytes.length + " data: " + bytesToHex(tag5f34Bytes));
+                                    System.out.println("Application Primary Account Number (PAN) Sequence Number found: " + "tag5f34Bytes length: " + tag5f34Bytes.length + " data: " + bytesToHex(tag5f34Bytes));
                                 }
                                 // MC output:
                                 // tag 5f24 is primitive (Application Expiration Date)
@@ -969,6 +992,7 @@ search for 9f38:
                                 } else {
                                     tag5f24Bytes = tag5f24.getBytesValue();
                                     writeToUiAppend(readResult, "tag5f24Bytes length: " + tag5f24Bytes.length + " data: " + bytesToHex(tag5f24Bytes));
+                                    System.out.println("Application Expiration Date found: " + "tag5f24Bytes length: " + tag5f24Bytes.length + " data: " + bytesToHex(tag5f24Bytes));
                                 }
                                 // MC output:
                                 // MC output:
@@ -981,9 +1005,11 @@ search for 9f38:
                                 } else {
                                     tag5f25Bytes = tag5f25.getBytesValue();
                                     writeToUiAppend(readResult, "tag5f25Bytes length: " + tag5f25Bytes.length + " data: " + bytesToHex(tag5f25Bytes));
+                                    System.out.println("Application Effective Date found: " + "tag5f25Bytes length: " + tag5f25Bytes.length + " data: " + bytesToHex(tag5f25Bytes));
                                 }
-                                // MC output:
-                            }
+                            } // if (startsWith(data, tag9f46Header)) {
+                            // MC output:
+                            //}
                         }
                     }
                 }
@@ -992,6 +1018,37 @@ search for 9f38:
             writeToUiAppend(readResult, "ERROR IOException: " + e);
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Determines whether the specified byte array starts with the specific bytes.
+     *
+     * @param array The array whose start is tested.
+     * @param startBytes The byte array whose presence at the start of the array is tested.
+     * @return 'true' when the array starts with the specified start bytes, 'false' otherwise.
+     */
+    private static boolean startsWith(byte[] array, byte[] startBytes) {
+        if (array == null || startBytes == null || array.length < startBytes.length) {
+            return false;
+        }
+
+        for (int i = 0; i < startBytes.length; i++) {
+            if (array[i] != startBytes[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static byte[] trim(byte[] bytes)
+    {
+        int i = bytes.length - 1;
+        while (i >= 0 && bytes[i] == 0)
+        {
+            --i;
+        }
+        return Arrays.copyOf(bytes, i + 1);
     }
 
     // https://stackoverflow.com/a/51338700/8166854
