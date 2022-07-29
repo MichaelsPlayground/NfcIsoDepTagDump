@@ -40,5 +40,4 @@ dependencies {
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.36'
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12
     implementation group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.36', ext: 'pom'
-
 }

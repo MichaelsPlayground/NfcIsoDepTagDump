@@ -7,6 +7,17 @@ Links:
 
 List of EMV-tags: https://github.com/devnied/EMV-NFC-Paycard-Enrollment/blob/master/library/src/main/java/com/github/devnied/emvnfccard/iso7816emv/EmvTags.java
 
+you need this: https://github.com/devnied/Bit-lib4j
+
+```plaintext
+// https://mvnrepository.com/artifact/commons-io/commons-io
+implementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+// https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+// https://mvnrepository.com/artifact/org.apache.commons/commons-collections4
+implementation group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
+```
+
 Online TLV-decoder: https://emvlab.org/tlvutils/
 
 https://stackoverflow.com/questions/24631012/apdu-command-to-read-credit-card-data-from-visa-paywave-nfc-enabled-card-using-s
